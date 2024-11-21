@@ -1,35 +1,17 @@
-# Use OpenJDK 21 as the base image
-FROM eclipse-temurin:21-jdk
+FROM maven:3.9.8-eclipse-temurin-21 AS build
 
-# Set working directory
+
 WORKDIR /app
+COPY pom.xml .
+COPY src ./src
+RUN mvn clean package -DskipTests
 
-# Copy the entire project
-COPY . .
+FROM openjdk:21
 
-# List files to debug
-RUN ls -la
-
-# Install dos2unix
-RUN apt-get update && apt-get install -y dos2unix
-
-# Fix line endings and set permissions for mvnw
-RUN dos2unix mvnw && \
-    chmod +x mvnw && \
-    ls -la mvnw
-
-# Generate Maven wrapper if it doesn't exist
-RUN if [ ! -f "mvnw" ]; then \
-    apt-get install -y maven && \
-    mvn -N io.takari:maven:wrapper && \
-    chmod +x mvnw; \
-    fi
-
-# List files again to verify
-RUN ls -la
-
-# Expose port 3000
+COPY --from=build /app/target/*.jar app.jar
+COPY wait-for-it.sh /wait-for-it.sh
+RUN chmod +x /wait-for-it.sh
 EXPOSE 3000
 
-# Run the application
-CMD ["./mvnw", "spring-boot:run", "-Dspring-boot.run.arguments=--server.port=3000"]
+# Comando de entrada para ejecutar la aplicación
+ENTRYPOINT ["java", "-jar", "app.jar"]
